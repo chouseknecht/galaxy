@@ -9,4 +9,4 @@ if [ ! -f /setup/dbinit.completed ]; then
      cd -
 fi
 
-exec /venv/bin/gunicorn -w 2 -b 0.0.0.0:8000 galaxy.wsgi:application
+exec "$@"

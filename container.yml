@@ -51,14 +51,14 @@ services:
       - elastic
       - memcache
       - rabbit
-    command: ['/usr/local/bin/dumb-init', '/setup/start.sh']
+    entrypoint: ['/setup/start.sh']
+    command: ['/usr/local/bin/dumb-init', '/venv/bin/gunicorn', '-w 2', '-b 0.0.0.0:8000', 'galaxy.wsgi:application']
     user: django
-    environment:
-      - C_FORCE_ROOT=1
     roles:
       - django-role
     dev_overrides:
-      command: [/usr/local/bin/dumb-init, /setup/start-development.sh]
+      entrypoint: ['/setup/start-development.sh']
+      command: ['/usr/local/bin/dumb-init', '/venv/bin/python', '/galaxy/manage.py', 'runserver 0.0.0.0:8000', '--nostatic']
       ports:
         - "8000:8000"
       volumes:

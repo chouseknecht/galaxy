@@ -24,4 +24,4 @@ else
      fi
 fi
 
-exec /venv/bin/python /galaxy/manage.py runserver 0.0.0.0:8000 --nostatic
+exec "$@"
