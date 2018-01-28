@@ -31,7 +31,8 @@ class GithubAPI(object):
         self.client = self.get_client()
         self.provider_name = provider_name if provider_name else self.get_provider_name()
 
-    def get_provider_name(self):
+    @staticmethod
+    def get_provider_name():
         try:
             provider = Provider.objects.get(name__iexact='github', active=True)
         except ObjectDoesNotExist:
@@ -94,3 +95,24 @@ class GithubAPI(object):
                 "Failed to access GitHub authorized user. {0} - {1}".format(exc.data, exc.status)
             )
         return result
+
+    def namespace_respositories(self, namespace):
+        """ Return a list of repositories for a given namespace """
+        gh_user = self.client.get_user()
+        repos = []
+        if namespace == gh_user.login:
+            for gh_repo in gh_user.get_repos():
+                if not repo.archived:
+                    repo = {
+                        'name': gh_repo.name,
+                        'description': gh_repo.full_name,
+                        'stargazers_count': gh_repo.stargazers_count,
+                        'watchers_count': gh_repo.watchers,
+                        'forks_count': gh_repo.forks,
+                        'open_issues_count': gh_repo.open_issues_count,
+                        'commit':
+                        'commit_message':
+                        'commit_url':
+                        'commit_created':
+                    }
+
