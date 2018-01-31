@@ -17,4 +17,5 @@
 
 from .namespace import *            # noqa
 from .provider_source import *      # noqa
+from .repository_source import *    # noqa
 from .views import *                # noqa

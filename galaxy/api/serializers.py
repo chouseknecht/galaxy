@@ -76,7 +76,9 @@ __all__ = [
     'RoleTopSerializer',
     'RoleDetailSerializer',
     'RoleSearchSerializer',
-    'ElasticSearchDSLSerializer'
+    'ElasticSearchDSLSerializer',
+    'ProviderSourceSerializer',
+    'RepositorySourceSerializer',
 ]
 
 
@@ -1048,9 +1050,127 @@ class ProviderSerializer(BaseSerializer):
         fields = (
             'id',
             'name',
-            'original_name',
             'description',
         )
 
     def get_url(self, obj):
         return reverse('api:active_provider_detail', args=(obj.pk,)) if obj else ''
+
+
+class ProviderSourceSerializer(serializers.BaseSerializer):
+
+    fields = [
+        'name',
+        'description',
+        'provider',
+        'display_name',
+        'avatar_url',
+        'location',
+        'company',
+        'email',
+        'html_url',
+        'followers'
+    ]
+
+    def to_representation(self, instance):
+        result = OrderedDict()
+        name = instance['name']
+        provider = instance['provider']
+        result['related'] = {
+            'repositories': reverse('api:repository_source_list', kwargs={'provider_name': provider.lower(),
+                                                                          'provider_namespace': name.lower()})
+        }
+        for field in self.fields:
+            result[field] = instance[field]
+        return result
+
+
+class RepositorySourceSerializer(serializers.BaseSerializer):
+
+    fields = [
+        'name',
+        'description',
+        'stargazers_count',
+        'watchers_count',
+        'forks_count',
+        'open_issues_count'
+    ]
+
+    def to_representation(self, instance):
+        result = OrderedDict()
+        provider_id = instance['provider_id']
+        provider_name = instance['provider_name']
+        provider_namespace = instance.get('provider_namespace_name')
+        provider_namespace_id = instance.get('provider_namespace_id')
+        namespace_name = instance.get('namespace_name')
+        namespace_id = instance.get('namespace_id')
+
+        result['related'] = {
+            'provider': reverse('api:active_provider_detail', kwargs={'pk': provider_id}),
+        }
+        if namespace_id:
+            result['related']['namespace'] = reverse('api:namespace_detail', kwargs={'pk': namespace_id})
+
+        # TODO add link to provider_namespace, if available in DB
+        # TODO add link to repo detail, for accessing last commit data
+
+        result['summary_fields'] = OrderedDict([
+            ('provider', provider_name),
+            ('provider_id', provider_id),
+            ('provider_namespace', provider_namespace),
+            ('provider_namespace_id', provider_namespace_id),
+            ('namespace', namespace_name),
+            ('namespace_id', namespace_id),
+        ])
+
+        for field in self.fields:
+            result[field] = instance[field]
+
+        return result
+
+class RepositorySourceDetailSerializer(serializers.BaseSerializer):
+
+    fields = [
+        'name',
+        'description',
+        'stargazers_count',
+        'watchers_count',
+        'forks_count',
+        'open_issues_count',
+        'commit',
+        'commit_message',
+        'commit_url',
+        'commit_created'
+    ]
+
+    def to_representation(self, instance):
+        result = OrderedDict()
+        provider_id = instance['provider_id']
+        provider_name = instance['provider_name']
+        provider_namespace = instance.get('provider_namespace_name')
+        provider_namespace_id = instance.get('provider_namespace_id')
+        namespace_name = instance.get('namespace_name')
+        namespace_id = instance.get('namespace_id')
+
+        result['related'] = {
+            'provider': reverse('api:active_provider_detail', kwargs={'pk': provider_id}),
+        }
+        if namespace_id:
+            result['related']['namespace'] = reverse('api:namespace_detail', kwargs={'pk': namespace_id})
+
+        # TODO add link to provider_namespace, if available in DB
+        # TODO add link to repo detail, for accessing last commit data
+
+        result['summary_fields'] = OrderedDict([
+            ('provider', provider_name),
+            ('provider_id', provider_id),
+            ('provider_namespace', provider_namespace),
+            ('provider_namespace_id', provider_namespace_id),
+            ('namespace', namespace_name),
+            ('namespace_id', namespace_id),
+        ])
+
+        for field in self.fields:
+            result[field] = instance[field]
+
+        return result

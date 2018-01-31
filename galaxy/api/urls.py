@@ -133,10 +133,11 @@ provider_urls = [
     url(r'^active/$', views.ActiveProviderList.as_view(), name='active_provider_list'),
     url(r'^active/(?P<pk>[0-9]+)/$', views.ActiveProviderDetail.as_view(), name='active_provider_detail'),
     url(r'^sources/$', views.ProviderSourceList.as_view(), name='provider_source_list'),
-    url(r'^sources/{provider_name}/{namespace}/$', views.ProviderRepositoryList.as_view(),
-        name='provider_repositories.list'),
-
-    # TODO add additional sources/provider/{namespace}/ endpoints
+    url(r'^sources/(?P<provider_name>[A-Za-z0-9_-]+)/(?P<provider_namespace>[A-Za-z0-9_-]+)/$',
+        views.RepositorySourceList.as_view(), name='repository_source_list'),
+    url(r'^sources/(?P<provider_name>[A-Za-z0-9_-]+)/(?P<provider_namespace>[A-Za-z0-9_-]+)/'
+        '(?P<repo_name>[A-Za-z0-9_-]+)/$',
+        views.RepositorySourceDetail.as_view(), name='repository_source_detail'),
 ]
 
 repo_urls = [

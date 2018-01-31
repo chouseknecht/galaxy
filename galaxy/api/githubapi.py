@@ -15,6 +15,7 @@
 # You should have received a copy of the Apache License
 # along with Galaxy.  If not, see <http://www.apache.org/licenses/>.
 
+import logging
 
 from github import Github
 from github.GithubException import GithubException
@@ -24,22 +25,27 @@ from django.core.exceptions import ObjectDoesNotExist
 from galaxy.main.models import Provider
 
 
+logger = logging.getLogger(__name__)
+
+
 class GithubAPI(object):
 
-    def __init__(self, user=None, provider_name=None):
+    def __init__(self, user=None):
         self.user = user
         self.client = self.get_client()
-        self.provider_name = provider_name if provider_name else self.get_provider_name()
+        provider = self.get_provider()
+        self.provider_name = provider.name
+        self.provider_id = provider.id
 
     @staticmethod
-    def get_provider_name():
+    def get_provider():
         try:
             provider = Provider.objects.get(name__iexact='github', active=True)
         except ObjectDoesNotExist:
             raise Exception(
                 "No provider found for GitHub"
             )
-        return provider.name
+        return provider
 
     def get_client(self):
         try:
@@ -96,23 +102,38 @@ class GithubAPI(object):
             )
         return result
 
-    def namespace_respositories(self, namespace):
+    def get_namespace_repositories(self, namespace, name=None):
         """ Return a list of repositories for a given namespace """
         gh_user = self.client.get_user()
-        repos = []
-        if namespace == gh_user.login:
-            for gh_repo in gh_user.get_repos():
-                if not repo.archived:
-                    repo = {
-                        'name': gh_repo.name,
-                        'description': gh_repo.full_name,
-                        'stargazers_count': gh_repo.stargazers_count,
-                        'watchers_count': gh_repo.watchers,
-                        'forks_count': gh_repo.forks,
-                        'open_issues_count': gh_repo.open_issues_count,
-                        'commit':
-                        'commit_message':
-                        'commit_url':
-                        'commit_created':
-                    }
-
+        repo = {}
+        for gh_repo in gh_user.get_repos(type='public'):
+            if gh_repo.owner.login == namespace:
+                repo = {
+                    'provider_id': self.provider_id,
+                    'provider_name': self.provider_name,
+                    'name': gh_repo.name,
+                    'description': gh_repo.full_name,
+                    'stargazers_count': gh_repo.stargazers_count,
+                    'watchers_count': gh_repo.watchers,
+                    'forks_count': gh_repo.forks,
+                    'open_issues_count': gh_repo.open_issues_count,
+                }
+                if not name:
+                    break
+                if gh_repo.name == name:
+                    try:
+                        commits = gh_repo.get_commits()
+                        commit = commits[0].commit
+                    except GithubException:
+                        repo['commit'] = None
+                        repo['commit_message'] = None
+                        repo['commit_url'] = None
+                        repo['commit_created'] = None
+                        break
+                    else:
+                        repo['commit'] = commit.sha
+                        repo['commit_message'] = commit.message
+                        repo['commit_url'] = commit.url
+                        repo['commit_created'] = commit.author.date
+                        break
+        return repo

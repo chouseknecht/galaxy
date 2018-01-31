@@ -276,6 +276,7 @@ class ActiveProviderList(ListAPIView):
     """ Active providers """
     model = Provider
     serializer_class = ProviderSerializer
+    permission_classes = (AllowAny,)
 
     def get_queryset(self):
         return self.model.objects.filter(active=True)
@@ -285,6 +286,7 @@ class ActiveProviderDetail(RetrieveAPIView):
     """ Active providers """
     model = Provider
     serializer_class = ProviderSerializer
+    permission_classes = (AllowAny,)
 
     def get_queryset(self):
         return self.model.objects.filter(active=True)

@@ -25,6 +25,7 @@ from rest_framework.response import Response
 from galaxy.main.models import Provider
 from .base_views import ListAPIView
 from ..githubapi import GithubAPI
+from ..serializers import ProviderSourceSerializer
 
 __all__ = (
     'ProviderSourceList',
@@ -37,12 +38,13 @@ class ProviderSourceList(ListAPIView):
     """ User namespaces available within each active provider """
     authentication_classes = (SessionAuthentication,)
     permission_classes = (IsAuthenticated,)
+    serializer_class = ProviderSourceSerializer
 
     def get(self, request, *args, **kwargs):
-        # Return a the list of user's repositories directly from each
+        # Return a list of namespaces from all providers for the requesting user
         sources = []
         for provider in Provider.objects.filter(active=True):
             if provider.name.lower() == 'github':
-                sources += GithubAPI(user=request.user,
-                                     provider_name=provider.name).user_namespaces()
-        return Response(sources, status=status.HTTP_200_OK)
+                sources += GithubAPI(user=request.user).user_namespaces()
+        serializer = self.get_serializer(sources, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

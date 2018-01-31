@@ -25,9 +25,10 @@ from rest_framework.exceptions import APIException
 
 from django.core.exceptions import ObjectDoesNotExist
 
-from galaxy.main.models import Provider
+from galaxy.main.models import Provider, ProviderNamespace
 from .base_views import ListAPIView
 from ..githubapi import GithubAPI
+from ..serializers import RepositorySourceSerializer
 
 __all__ = (
     'RepositorySourceList',
@@ -36,21 +37,82 @@ __all__ = (
 logger = logging.getLogger(__name__)
 
 
-class ProviderRepositoryList(ListAPIView):
+class RepositorySourceList(ListAPIView):
     """ Repositories available for a given provider and namespace """
     authentication_classes = (SessionAuthentication,)
     permission_classes = (IsAuthenticated,)
+    serializer_class = RepositorySourceSerializer
 
     def get(self, request, *args, **kwargs):
         # Return a list of repositories from the provider for a given namespace
-        request_provider = kwargs.get('provider')
-        request_namespace = kwargs.get('namespace')
+        request_provider = kwargs.get('provider_name')
+        request_namespace = kwargs.get('provider_namespace')
+        repos = []
+        try:
+            provider = Provider.objects.get(name__iexact=request_provider.lower(), active=True)
+        except ObjectDoesNotExist:
+            raise APIException("Invalid provider {0}".format(request_provider))
+
+        try:
+            provider_namespace = ProviderNamespace.objects.get(provider=provider, name__iexact=request_namespace)
+        except ObjectDoesNotExist:
+            provider_namespace = None
+
+        if provider.name.lower() == 'github':
+            repos = GithubAPI(user=request.user).get_namespace_repositories(request_namespace)
+
+        for repo in repos:
+            repo['provider_namespace_name'] = None
+            repo['provider_namespace_id'] = None
+            repo['namespace_name'] = None
+            repo['namespace_id'] = None
+            if provider_namespace:
+                repo['provider_namespace_name'] = provider_namespace.name
+                repo['provider_namespace_id'] = provider_namespace.id
+            if provider_namespace and provider_namespace.namespace:
+                repo['namespace_name'] = provider_namespace.namespace.name
+                repo['namespace_id'] = provider_namespace.namespace.id
+
+        serializer = self.get_serializer(repos, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class RepositorySourceDetail(ListAPIView):
+    """ Details for a specific repo """
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (IsAuthenticated,)
+    serializer_class = RepositorySourceSerializer
+
+    def get(self, request, *args, **kwargs):
+        # Return a list of repositories from the provider for a given namespace
+        request_provider = kwargs.get('provider_name')
+        request_namespace = kwargs.get('provider_namespace')
+        request_repo = kwargs.get('repo_name')
+        repos = {}
 
         try:
             provider = Provider.objects.get(name__iexact=request_provider.lower(), active=True)
         except ObjectDoesNotExist:
             raise APIException("Invalid provider {0}".format(request_provider))
 
-        sources += GithubAPI(user=request.user,
-                                     provider_name=provider.name).user_namespaces()
-        return Response(sources, status=status.HTTP_200_OK)
+        try:
+            provider_namespace = ProviderNamespace.objects.get(provider=provider, name__iexact=request_namespace)
+        except ObjectDoesNotExist:
+            provider_namespace = None
+
+        if provider.name.lower() == 'github':
+            repo = GithubAPI(user=request.user).get_namespace_repositories(request_namespace, name=request_repo)
+
+        repo['provider_namespace_name'] = None
+        repo['provider_namespace_id'] = None
+        repo['namespace_name'] = None
+        repo['namespace_id'] = None
+        if provider_namespace:
+            repo['provider_namespace_name'] = provider_namespace.name
+            repo['provider_namespace_id'] = provider_namespace.id
+        if provider_namespace and provider_namespace.namespace:
+            repo['namespace_name'] = provider_namespace.namespace.name
+            repo['namespace_id'] = provider_namespace.namespace.id
+
+        serializer = self.get_serializer(repos, many=False)
+        return Response(serializer.data, status=status.HTTP_200_OK)
